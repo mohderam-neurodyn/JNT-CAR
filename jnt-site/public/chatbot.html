@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Chatbot</title>
+    <!-- Use Tailwind CSS for a clean, modern look -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for the chatbot */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .chatbot-container {
+            width: 100%;
+            max-width: 400px;
+            background-color: white;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            height: 80vh;
+            max-height: 600px;
+        }
+
+        .chat-header {
+            background-color: #4f46e5;
+            color: white;
+            padding: 1.5rem;
+            border-top-left-radius: 1rem;
+            border-top-right-radius: 1rem;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.25rem;
+        }
+
+        .chat-body {
+            flex-grow: 1;
+            padding: 1rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .message {
+            max-width: 85%;
+            padding: 0.75rem 1rem;
+            border-radius: 1.5rem;
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+
+        .user-message {
+            background-color: #eef2ff;
+            color: #312e81;
+            align-self: flex-end;
+            border-bottom-right-radius: 0.25rem;
+        }
+
+        .bot-message {
+            background-color: #f3f4f6;
+            color: #1f2937;
+            align-self: flex-start;
+            border-bottom-left-radius: 0.25rem;
+        }
+
+        .chat-input-container {
+            padding: 1rem;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .chat-input {
+            flex-grow: 1;
+            padding: 0.75rem 1rem;
+            border: 1px solid #d1d5db;
+            border-radius: 1.5rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .chat-input:focus {
+            border-color: #4f46e5;
+        }
+
+        .send-button {
+            background-color: #4f46e5;
+            color: white;
+            border: none;
+            border-radius: 1.5rem;
+            padding: 0.75rem 1.5rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .send-button:hover {
+            background-color: #4338ca;
+        }
+
+        /* Message box for a better user experience than alert() */
+        #message-box-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        #message-box {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="chatbot-container">
+        <div class="chat-header">
+            Simple Chatbot
+        </div>
+        <div class="chat-body" id="chat-body">
+            <!-- Initial bot message -->
+            <div class="bot-message message">Hello! How can I help you today?</div>
+        </div>
+        <div class="chat-input-container">
+            <input type="text" id="user-input" class="chat-input" placeholder="Type your message...">
+            <button id="send-button" class="send-button">Send</button>
+        </div>
+    </div>
+
+    <div id="message-box-container">
+        <div id="message-box">
+            <p id="message-text"></p>
+            <button id="message-box-close" class="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg">OK</button>
+        </div>
+    </div>
+
+    <script>
+        // DOM elements
+        const chatBody = document.getElementById('chat-body');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+        const messageBoxContainer = document.getElementById('message-box-container');
+        const messageText = document.getElementById('message-text');
+        const messageBoxClose = document.getElementById('message-box-close');
+
+        // Simple bot responses
+        const responses = {
+            'hello': 'Hi there! How can I assist you?',
+            'hi': 'Hello! What can I do for you?',
+            'how are you': 'I am a chatbot, so I am always doing great!',
+            'what is your name': 'I don\'t have a name, I am just a simple bot.',
+            'bye': 'Goodbye! Have a nice day!',
+            'thank you': 'You\'re welcome!',
+            'thanks': 'You\'re welcome!',
+            'help': 'I can answer simple questions. Try asking me about my name or how I am.',
+            'default': 'I\'m sorry, I don\'t understand that. Can you rephrase?',
+            'tell me a joke': 'Why don\'t scientists trust atoms? Because they make up everything!',
+        };
+
+        // Function to show a custom message box
+        function showMessageBox(text) {
+            messageText.innerText = text;
+            messageBoxContainer.style.display = 'flex';
+        }
+
+        messageBoxClose.addEventListener('click', () => {
+            messageBoxContainer.style.display = 'none';
+        });
+
+        // Function to create a message element
+        function createMessageElement(text, sender) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message', `${sender}-message`);
+            messageElement.textContent = text;
+            return messageElement;
+        }
+
+        // Function to add a message to the chat body
+        function addMessage(text, sender) {
+            const messageElement = createMessageElement(text, sender);
+            chatBody.appendChild(messageElement);
+            // Scroll to the bottom of the chat
+            chatBody.scrollTop = chatBody.scrollHeight;
+        }
+
+        // Function to get the bot's response
+        function getBotResponse(userMessage) {
+            const lowerCaseMessage = userMessage.toLowerCase().trim();
+            for (const key in responses) {
+                if (lowerCaseMessage.includes(key)) {
+                    return responses[key];
+                }
+            }
+            return responses.default;
+        }
+
+        // Function to handle sending a message
+        function sendMessage() {
+            const userMessage = userInput.value;
+            if (userMessage.trim() === '') {
+                showMessageBox('Please enter a message.');
+                return;
+            }
+
+            // Add user message to chat
+            addMessage(userMessage, 'user');
+            userInput.value = '';
+
+            // Get bot response after a short delay
+            setTimeout(() => {
+                const botResponse = getBotResponse(userMessage);
+                addMessage(botResponse, 'bot');
+            }, 500);
+        }
+
+        // Event listener for the send button
+        sendButton.addEventListener('click', sendMessage);
+
+        // Event listener for the Enter key
+        userInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
