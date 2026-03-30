@@ -2,8 +2,8 @@ import "./globals.css";
 import Link from "next/link";
 
 export const metadata = {
-  title: "NeuroDyn Technologies",
-  description: "Where Intelligence Meets Technology",
+  title: "JNT CAR",
+  description: "Drive Your Dream CAR",
 };
 
 export default function RootLayout({
@@ -29,7 +29,7 @@ export default function RootLayout({
 
         {/* Footer */}
         <footer className="bg-gray-900 text-white text-center p-6 mt-12">
-          <p>© {new Date().getFullYear()} NeuroDyn Technologies — Where Intelligence Meets Technology</p>
+          <p>© {new Date().getFullYear()} JNT CAR — Drive Your Dream Car</p>
         </footer>
       </body>
     </html>
