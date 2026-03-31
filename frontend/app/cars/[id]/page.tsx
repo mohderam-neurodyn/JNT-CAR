@@ -47,8 +47,8 @@ export default function CarDetails() {
         setCar({
           ...apiCar,
           id: apiCar.id.toString(),
-          pricePerDay: apiCar.price_per_day,
-          pricePerHour: apiCar.price_per_hour,
+          pricePerDay: apiCar.price_per_day || 0,
+          pricePerHour: apiCar.price_per_hour || 0,
         });
       } catch (apiError) {
         // Fallback to static data
