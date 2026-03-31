@@ -17,7 +17,7 @@ import {
   Loader2,
   AlertCircle
 } from "lucide-react";
-import { apiClient, type Car } from "@/lib/api";
+import { apiClient, type Car } from "../../../lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -52,7 +52,7 @@ export default function CarDetails() {
         });
       } catch (apiError) {
         // Fallback to static data
-        const { cars } = await import("@/lib/data");
+        const { cars } = await import("../../../lib/data");
         const staticCar = cars.find((c: Car) => c.id === carId);
         if (staticCar) {
           setCar(staticCar);

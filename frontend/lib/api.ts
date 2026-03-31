@@ -1,13 +1,32 @@
-import axios from 'axios';
-
+// Simple API client using fetch
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
+const api = {
+  get: async (url: string) => {
+    const response = await fetch(`${API_BASE_URL}${url}`);
+    return response.json();
   },
-});
+  post: async (url: string, data: any) => {
+    const response = await fetch(`${API_BASE_URL}${url}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+    return response.json();
+  },
+  put: async (url: string, data: any) => {
+    const response = await fetch(`${API_BASE_URL}${url}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+    return response.json();
+  },
+};
 
 // Types
 export interface User {
@@ -118,11 +137,8 @@ export const apiClient = {
     const params = new URLSearchParams({
       pickup_date: pickupDate,
       drop_date: dropDate,
+      ...(location && { location }),
     });
-    
-    if (location) {
-      params.append('location', location);
-    }
     
     const response = await api.get(`/api/cars/available?${params}`);
     return response.data;
@@ -140,7 +156,7 @@ export const apiClient = {
   },
 
   updateBooking: async (
-    bookingId: number, 
+    bookingId: number,
     updateData: Partial<Booking>
   ): Promise<Booking> => {
     const response = await api.put(`/api/bookings/${bookingId}`, updateData);
@@ -148,12 +164,12 @@ export const apiClient = {
   },
 
   confirmBooking: async (bookingId: number): Promise<Booking> => {
-    const response = await api.post(`/api/bookings/${bookingId}/confirm`);
+    const response = await api.post(`/api/bookings/${bookingId}/confirm`, {});
     return response.data;
   },
 
   cancelBooking: async (bookingId: number): Promise<Booking> => {
-    const response = await api.post(`/api/bookings/${bookingId}/cancel`);
+    const response = await api.post(`/api/bookings/${bookingId}/cancel`, {});
     return response.data;
   },
 
@@ -166,15 +182,9 @@ export const apiClient = {
     const params = new URLSearchParams({
       skip: skip.toString(),
       limit: limit.toString(),
+      ...(userId && { user_id: userId.toString() }),
+      ...(status && { status }),
     });
-    
-    if (userId) {
-      params.append('user_id', userId.toString());
-    }
-    
-    if (status) {
-      params.append('status', status);
-    }
     
     const response = await api.get(`/api/bookings/?${params}`);
     return response.data;

@@ -24,8 +24,8 @@ import {
   AlertCircle,
   Loader2
 } from "lucide-react";
-import { type Car } from "@/lib/data";
-import { apiClient, type User as UserType, type Booking } from "@/lib/api";
+import { type Car } from "../../../lib/data";
+import { apiClient, type User as UserType, type Booking } from "../../../lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -77,7 +77,7 @@ export default function Booking() {
           });
         } catch (apiError) {
           // Fallback to static data
-          const { cars } = await import("@/lib/data");
+          const { cars } = await import("../../../lib/data");
           const staticCar = cars.find((c: Car) => c.id === carId);
           if (staticCar) {
             setCar(staticCar);

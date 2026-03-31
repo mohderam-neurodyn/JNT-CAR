@@ -16,7 +16,7 @@ import {
   AlertCircle,
   Loader2
 } from "lucide-react";
-import { apiClient, type Booking, type User as UserType } from "@/lib/api";
+import { apiClient, type Booking, type User as UserType } from "../../lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
