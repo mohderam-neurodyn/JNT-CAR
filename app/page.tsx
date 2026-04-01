@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Search, MapPin, Calendar, Users, Star, ChevronRight, Shield, Clock, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { cars } from "../lib/data";
+import { cars } from "@/lib/data";
 
 export default function Home() {
   const featuredCars = cars.slice(0, 3);

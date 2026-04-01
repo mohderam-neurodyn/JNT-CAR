@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Filter, Star, Users, Fuel, Settings, Search, Heart, MapPin, Loader2, AlertCircle } from "lucide-react";
-import { apiClient, type Car } from "../../lib/api";
-import { categories, transmissions, fuelTypes, locations } from "../../lib/data";
+import { apiClient, type Car } from "@/lib/api";
+import { categories, transmissions, fuelTypes, locations } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 

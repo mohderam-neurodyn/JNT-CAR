@@ -17,7 +17,7 @@ import {
   Loader2,
   AlertCircle
 } from "lucide-react";
-import { apiClient, type Car } from "../../../lib/api";
+import { apiClient, type Car } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 

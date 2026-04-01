@@ -1,4 +1,0 @@
-  confirmBooking: async (bookingId: number): Promise<Booking> => {
-    const response = await api.post(`/api/bookings/${bookingId}/confirm`);
-    return response.data;
-  },
