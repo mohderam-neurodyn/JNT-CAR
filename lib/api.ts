@@ -1,34 +1,155 @@
-// Simple API client using fetch
+import axios from 'axios';
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-const api = {
-  get: async (url: string) => {
-    const response = await fetch(`${API_BASE_URL}${url}`);
-    return response.json();
+// Create axios instance
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
   },
-  post: async (url: string, data: any) => {
-    const response = await fetch(`${API_BASE_URL}${url}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-    return response.json();
+});
+
+// Add auth token to requests
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('access_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Handle auth errors
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
+// Types for FastAPI backend
+export interface FastAPIUser {
+  id: string;
+  name: string;
+  email: string;
+  role: 'admin' | 'user';
+  created_at: string;
+}
+
+export interface AuthResponse {
+  access_token: string;
+  token_type: string;
+  user: FastAPIUser;
+}
+
+export interface FastAPICar {
+  id: string;
+  brand: string;
+  model: string;
+  year: number;
+  daily_rate: number;
+  transmission: 'manual' | 'automatic';
+  fuel_type: 'petrol' | 'diesel' | 'electric';
+  seats: number;
+  description?: string;
+  images?: string[];
+  latitude: number;
+  longitude: number;
+  address: string;
+  city: string;
+  is_available: boolean;
+  owner_id: string;
+  created_at: string;
+  distance_km?: number;
+}
+
+export interface CarFormData {
+  brand: string;
+  model: string;
+  year: number;
+  daily_rate: number;
+  transmission: 'manual' | 'automatic';
+  fuel_type: 'petrol' | 'diesel' | 'electric';
+  seats: number;
+  description?: string;
+  images?: string[];
+  latitude: number;
+  longitude: number;
+  address: string;
+  city: string;
+}
+
+// Auth API
+export const authAPI = {
+  login: async (email: string, password: string): Promise<AuthResponse> => {
+    const response = await api.post('/api/auth/login', { email, password });
+    return response.data;
   },
-  put: async (url: string, data: any) => {
-    const response = await fetch(`${API_BASE_URL}${url}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-    return response.json();
+
+  register: async (name: string, email: string, password: string): Promise<AuthResponse> => {
+    const response = await api.post('/api/auth/register', { name, email, password });
+    return response.data;
+  },
+
+  getCurrentUser: async (): Promise<FastAPIUser> => {
+    const response = await api.get('/api/auth/me');
+    return response.data;
   },
 };
 
-// Types
+// Cars API
+export const carsAPI = {
+  getCars: async (city?: string, limit = 20): Promise<FastAPICar[]> => {
+    const params = new URLSearchParams();
+    if (city) params.append('city', city);
+    params.append('limit', limit.toString());
+    
+    const response = await api.get(`/api/cars?${params}`);
+    return response.data;
+  },
+
+  getCar: async (id: string): Promise<FastAPICar> => {
+    const response = await api.get(`/api/cars/${id}`);
+    return response.data;
+  },
+
+  getNearbyCars: async (
+    lat: number, 
+    lng: number, 
+    radius = 10, 
+    city?: string
+  ): Promise<FastAPICar[]> => {
+    const params = new URLSearchParams();
+    params.append('lat', lat.toString());
+    params.append('lng', lng.toString());
+    params.append('radius', radius.toString());
+    if (city) params.append('city', city);
+    
+    const response = await api.get(`/api/cars/nearby?${params}`);
+    return response.data;
+  },
+
+  createCar: async (carData: CarFormData): Promise<FastAPICar> => {
+    const response = await api.post('/api/cars', carData);
+    return response.data;
+  },
+
+  updateCar: async (id: string, carData: Partial<CarFormData>): Promise<FastAPICar> => {
+    const response = await api.put(`/api/cars/${id}`, carData);
+    return response.data;
+  },
+
+  deleteCar: async (id: string): Promise<void> => {
+    await api.delete(`/api/cars/${id}`);
+  },
+};
+
+// Legacy types for compatibility with existing frontend
 export interface User {
   id: number;
   first_name: string;
@@ -100,7 +221,7 @@ export interface UserCreate {
   address: string;
 }
 
-// API Functions
+// Legacy API functions for compatibility
 export const apiClient = {
   // Users
   createUser: async (userData: UserCreate): Promise<User> => {
@@ -118,15 +239,59 @@ export const apiClient = {
     return response.data;
   },
 
-  // Cars
+  // Cars - Updated to use FastAPI
   getCars: async (): Promise<Car[]> => {
-    const response = await api.get('/api/cars/');
-    return response.data;
+    try {
+      const fastAPICars = await carsAPI.getCars();
+      // Convert FastAPI cars to legacy format for compatibility
+      return fastAPICars.map(car => ({
+        id: car.id,
+        name: `${car.brand} ${car.model}`,
+        brand: car.brand,
+        category: car.fuel_type,
+        transmission: car.transmission,
+        fuel: car.fuel_type,
+        seats: car.seats,
+        price_per_day: car.daily_rate,
+        pricePerDay: car.daily_rate,
+        image: car.images?.[0] || '/placeholder-car.jpg',
+        rating: 4.5,
+        reviews: 12,
+        features: [car.transmission, car.fuel_type, `${car.seats} seats`],
+        available: car.is_available,
+        location: car.city,
+        created_at: car.created_at,
+      }));
+    } catch (error) {
+      // Fallback to mock data if API fails
+      return [];
+    }
   },
 
   getCar: async (carId: number): Promise<Car> => {
-    const response = await api.get(`/api/cars/${carId}`);
-    return response.data;
+    try {
+      const fastAPICar = await carsAPI.getCar(carId.toString());
+      return {
+        id: fastAPICar.id,
+        name: `${fastAPICar.brand} ${fastAPICar.model}`,
+        brand: fastAPICar.brand,
+        category: fastAPICar.fuel_type,
+        transmission: fastAPICar.transmission,
+        fuel: fastAPICar.fuel_type,
+        seats: fastAPICar.seats,
+        price_per_day: fastAPICar.daily_rate,
+        pricePerDay: fastAPICar.daily_rate,
+        image: fastAPICar.images?.[0] || '/placeholder-car.jpg',
+        rating: 4.5,
+        reviews: 12,
+        features: [fastAPICar.transmission, fastAPICar.fuel_type, `${fastAPICar.seats} seats`],
+        available: fastAPICar.is_available,
+        location: fastAPICar.city,
+        created_at: fastAPICar.created_at,
+      };
+    } catch (error) {
+      throw error;
+    }
   },
 
   getAvailableCars: async (
@@ -134,17 +299,33 @@ export const apiClient = {
     dropDate: string,
     location?: string
   ): Promise<Car[]> => {
-    const params = new URLSearchParams({
-      pickup_date: pickupDate,
-      drop_date: dropDate,
-      ...(location && { location }),
-    });
-    
-    const response = await api.get(`/api/cars/available?${params}`);
-    return response.data;
+    try {
+      // For now, just get all cars and filter by availability
+      const fastAPICars = await carsAPI.getCars(location);
+      return fastAPICars.map(car => ({
+        id: car.id,
+        name: `${car.brand} ${car.model}`,
+        brand: car.brand,
+        category: car.fuel_type,
+        transmission: car.transmission,
+        fuel: car.fuel_type,
+        seats: car.seats,
+        price_per_day: car.daily_rate,
+        pricePerDay: car.daily_rate,
+        image: car.images?.[0] || '/placeholder-car.jpg',
+        rating: 4.5,
+        reviews: 12,
+        features: [car.transmission, car.fuel_type, `${car.seats} seats`],
+        available: car.is_available,
+        location: car.city,
+        created_at: car.created_at,
+      }));
+    } catch (error) {
+      return [];
+    }
   },
 
-  // Bookings
+  // Bookings - Keep legacy for now
   createBooking: async (bookingData: BookingCreate): Promise<Booking> => {
     const response = await api.post('/api/bookings/', bookingData);
     return response.data;

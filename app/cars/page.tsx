@@ -1,16 +1,31 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Filter, Star, Users, Fuel, Settings, Search, Heart, MapPin, Loader2, AlertCircle } from "lucide-react";
-import { apiClient, type Car } from "@/lib/api";
+import { Filter, Star, Users, Fuel, Settings, Search, Heart, MapPin, Loader2, AlertCircle, Locate } from "lucide-react";
+import { carsAPI, type FastAPICar } from "@/lib/api";
 import { categories, transmissions, fuelTypes, locations } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Slider } from "@/components/ui/slider";
+import { Label } from "@/components/ui/label";
+
+interface SearchFilters {
+  location: string;
+  startDate: string;
+  endDate: string;
+  startTime: string;
+  endTime: string;
+  lat?: number;
+  lng?: number;
+  nearby?: boolean;
+}
 
 export default function CarListing() {
-  const [cars, setCars] = useState<Car[]>([]);
-  const [filteredCars, setFilteredCars] = useState<Car[]>([]);
+  const searchParams = useSearchParams();
+  const [cars, setCars] = useState<FastAPICar[]>([]);
+  const [filteredCars, setFilteredCars] = useState<FastAPICar[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -18,36 +33,74 @@ export default function CarListing() {
   const [selectedFuel, setSelectedFuel] = useState("All");
   const [selectedLocation, setSelectedLocation] = useState("All");
   const [sortBy, setSortBy] = useState("featured");
+  const [priceRange, setPriceRange] = useState([0, 5000]);
+  const [searchFilters, setSearchFilters] = useState<SearchFilters>({
+    location: "",
+    startDate: "",
+    endDate: "",
+    startTime: "",
+    endTime: "",
+  });
 
   useEffect(() => {
+    // Parse URL search parameters
+    const location = searchParams.get('location') || "";
+    const startDate = searchParams.get('startDate') || "";
+    const endDate = searchParams.get('endDate') || "";
+    const startTime = searchParams.get('startTime') || "";
+    const endTime = searchParams.get('endTime') || "";
+    const lat = searchParams.get('lat');
+    const lng = searchParams.get('lng');
+    const nearby = searchParams.get('nearby');
+
+    setSearchFilters({
+      location,
+      startDate,
+      endDate,
+      startTime,
+      endTime,
+      lat: lat ? parseFloat(lat) : undefined,
+      lng: lng ? parseFloat(lng) : undefined,
+      nearby: nearby === "true",
+    });
+
+    if (location) {
+      setSelectedLocation(location);
+    }
+
     loadCars();
-  }, []);
+  }, [searchParams]);
 
   useEffect(() => {
     filterAndSortCars();
-  }, [cars, selectedCategory, selectedTransmission, selectedFuel, selectedLocation, sortBy]);
+  }, [cars, selectedCategory, selectedTransmission, selectedFuel, selectedLocation, sortBy, priceRange]);
 
   const loadCars = async () => {
     try {
       setLoading(true);
-      const apiCars = await apiClient.getCars();
-      
-      // Transform API car data to match frontend Car interface
-      const transformedCars = apiCars.map(apiCar => ({
-        ...apiCar,
-        id: apiCar.id.toString(),
-        pricePerDay: apiCar.price_per_day || 0,
-        pricePerHour: apiCar.price_per_hour || 0,
-      }));
-      
-      setCars(transformedCars);
+      let apiCars: FastAPICar[] = [];
+
+      // Use nearby search if location coordinates are provided
+      if (searchFilters.lat && searchFilters.lng && searchFilters.nearby) {
+        apiCars = await carsAPI.getNearbyCars(
+          searchFilters.lat,
+          searchFilters.lng,
+          10, // 10km radius
+          searchFilters.location
+        );
+      } else {
+        // Regular search with city filter
+        apiCars = await carsAPI.getCars(searchFilters.location || undefined);
+      }
+
+      setCars(apiCars);
     } catch (err: any) {
       setError(err.response?.data?.detail || "Failed to load cars");
       
       // Fallback to static data if API fails
       try {
         const { cars: staticCars } = await import("../../lib/data");
-        setCars(staticCars);
+        setCars(staticCars as any);
       } catch (staticErr) {
         setError("Failed to load cars from both API and static data");
       }
@@ -58,25 +111,63 @@ export default function CarListing() {
 
   const filterAndSortCars = () => {
     let filtered = cars.filter((car) => {
-      if (selectedCategory !== "All" && car.category !== selectedCategory) return false;
-      if (selectedTransmission !== "All" && car.transmission !== selectedTransmission) return false;
-      if (selectedFuel !== "All" && car.fuel !== selectedFuel) return false;
-      if (selectedLocation !== "All" && car.location !== selectedLocation) return false;
+      // Category filter
+      if (selectedCategory !== "All") {
+        const carCategory = car.fuel_type === "electric" ? "Electric" : 
+                           car.seats >= 7 ? "SUV" : 
+                           car.brand.toLowerCase().includes("luxury") ? "Luxury" : "Sedan";
+        if (carCategory !== selectedCategory) return false;
+      }
+      
+      // Transmission filter
+      if (selectedTransmission !== "All" && car.transmission !== selectedTransmission.toLowerCase()) return false;
+      
+      // Fuel filter
+      if (selectedFuel !== "All" && car.fuel_type !== selectedFuel.toLowerCase()) return false;
+      
+      // Location filter
+      if (selectedLocation !== "All" && car.city !== selectedLocation) return false;
+      
+      // Price filter
+      if (car.daily_rate < priceRange[0] || car.daily_rate > priceRange[1]) return false;
+      
       return true;
     });
 
     // Sort cars
     filtered = [...filtered].sort((a, b) => {
-      const aPrice = a.pricePerDay || a.price_per_day || 0;
-      const bPrice = b.pricePerDay || b.price_per_day || 0;
-      
-      if (sortBy === "price-low") return aPrice - bPrice;
-      if (sortBy === "price-high") return bPrice - aPrice;
-      if (sortBy === "rating") return b.rating - a.rating;
+      if (sortBy === "price-low") return a.daily_rate - b.daily_rate;
+      if (sortBy === "price-high") return b.daily_rate - a.daily_rate;
+      if (sortBy === "distance" && a.distance_km && b.distance_km) return a.distance_km - b.distance_km;
       return 0;
     });
 
     setFilteredCars(filtered);
+  };
+
+  const handleLocationDetect = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          try {
+            const nearbyCars = await carsAPI.getNearbyCars(
+              position.coords.latitude,
+              position.coords.longitude,
+              10
+            );
+            setCars(nearbyCars);
+            setSelectedLocation("Nearby");
+          } catch (error) {
+            setError("Failed to get nearby cars");
+          }
+        },
+        (error) => {
+          setError("Unable to get your location");
+        }
+      );
+    } else {
+      setError("Geolocation is not supported");
+    }
   };
 
   if (loading) {
@@ -93,6 +184,25 @@ export default function CarListing() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Search Summary */}
+        {searchFilters.location && (
+          <Card className="border-0 shadow-sm mb-6">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-gray-600">
+                  <span className="font-medium">Search:</span> {searchFilters.location}
+                  {searchFilters.startDate && searchFilters.endDate && (
+                    <> • {searchFilters.startDate} to {searchFilters.endDate}</>
+                  )}
+                </div>
+                <Link href="/">
+                  <Button variant="outline" size="sm">Modify Search</Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Modern Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
@@ -128,6 +238,7 @@ export default function CarListing() {
                       setSelectedTransmission("All");
                       setSelectedFuel("All");
                       setSelectedLocation("All");
+                      setPriceRange([0, 5000]);
                     }}
                     className="text-gray-500 hover:text-gray-700"
                   >
@@ -137,7 +248,18 @@ export default function CarListing() {
 
                 {/* Location Filter */}
                 <div className="mb-6">
-                  <label className="block font-semibold text-gray-900 mb-3">Location</label>
+                  <div className="flex items-center justify-between mb-3">
+                    <Label className="font-semibold text-gray-900">Location</Label>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleLocationDetect}
+                      className="text-blue-600 hover:text-blue-700 p-1 h-8 w-8"
+                      title="Use my current location"
+                    >
+                      <Locate className="w-4 h-4" />
+                    </Button>
+                  </div>
                   <div className="relative">
                     <MapPin className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
                     <select
@@ -146,6 +268,7 @@ export default function CarListing() {
                       className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none"
                     >
                       <option value="All">All Locations</option>
+                      <option value="Nearby">Near Me</option>
                       {locations.map((location) => (
                         <option key={location} value={location}>
                           {location}
@@ -155,9 +278,24 @@ export default function CarListing() {
                   </div>
                 </div>
 
+                {/* Price Range Filter */}
+                <div className="mb-6">
+                  <Label className="font-semibold text-gray-900 mb-3 block">
+                    Price Range: ₹{priceRange[0]} - ₹{priceRange[1]}
+                  </Label>
+                  <Slider
+                    value={priceRange}
+                    onValueChange={setPriceRange}
+                    max={5000}
+                    min={0}
+                    step={100}
+                    className="w-full"
+                  />
+                </div>
+
                 {/* Category Filter */}
                 <div className="mb-6">
-                  <label className="block font-semibold text-gray-900 mb-3">Category</label>
+                  <Label className="font-semibold text-gray-900 mb-3 block">Category</Label>
                   <div className="space-y-2">
                     {categories.map((category) => (
                       <label
@@ -180,7 +318,7 @@ export default function CarListing() {
 
                 {/* Transmission Filter */}
                 <div className="mb-6">
-                  <label className="block font-semibold text-gray-900 mb-3">Transmission</label>
+                  <Label className="font-semibold text-gray-900 mb-3 block">Transmission</Label>
                   <div className="space-y-2">
                     {transmissions.map((transmission) => (
                       <label
@@ -203,7 +341,7 @@ export default function CarListing() {
 
                 {/* Fuel Filter */}
                 <div className="mb-6">
-                  <label className="block font-semibold text-gray-900 mb-3">Fuel Type</label>
+                  <Label className="font-semibold text-gray-900 mb-3 block">Fuel Type</Label>
                   <div className="space-y-2">
                     {fuelTypes.map((fuel) => (
                       <label
@@ -246,7 +384,7 @@ export default function CarListing() {
                       <option value="featured">Featured</option>
                       <option value="price-low">Price: Low to High</option>
                       <option value="price-high">Price: High to Low</option>
-                      <option value="rating">Top Rated</option>
+                      {searchFilters.nearby && <option value="distance">Distance</option>}
                     </select>
                   </div>
                 </div>
@@ -272,14 +410,14 @@ export default function CarListing() {
                   <Card key={car.id} className="border-0 shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105 group overflow-hidden">
                     <div className="relative">
                       <img
-                        src={car.image}
-                        alt={car.name}
+                        src={car.images?.[0] || '/placeholder-car.jpg'}
+                        alt={`${car.brand} ${car.model}`}
                         className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-700"
                       />
                       <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full">
                         <div className="flex items-center gap-1">
                           <Star className="w-4 h-4 text-yellow-500 fill-current" />
-                          <span className="text-sm font-semibold">{car.rating}</span>
+                          <span className="text-sm font-semibold">4.5</span>
                         </div>
                       </div>
                       <div className="absolute top-4 left-4">
@@ -287,9 +425,16 @@ export default function CarListing() {
                           <Heart className="w-4 h-4" />
                         </Button>
                       </div>
+                      {car.distance_km && (
+                        <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full">
+                          <span className="text-xs font-semibold text-blue-600">
+                            {car.distance_km.toFixed(1)} km away
+                          </span>
+                        </div>
+                      )}
                       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
-                        <h3 className="text-white text-xl font-bold">{car.name}</h3>
-                        <p className="text-white/90">{car.brand}</p>
+                        <h3 className="text-white text-xl font-bold">{car.brand} {car.model}</h3>
+                        <p className="text-white/90">{car.year} • {car.city}</p>
                       </div>
                     </div>
                     <CardContent className="p-6">
@@ -305,13 +450,13 @@ export default function CarListing() {
                           </div>
                           <div className="flex items-center gap-1">
                             <Fuel className="w-4 h-4" />
-                            <span>{car.fuel}</span>
+                            <span>{car.fuel_type}</span>
                           </div>
                         </div>
                       </div>
                       <div className="flex items-center justify-between">
                         <div>
-                          <div className="text-2xl font-bold text-gray-900">₹{car.pricePerDay || car.price_per_day}</div>
+                          <div className="text-2xl font-bold text-gray-900">₹{car.daily_rate}</div>
                           <div className="text-sm text-gray-600">per day</div>
                         </div>
                         <div className="flex gap-2">

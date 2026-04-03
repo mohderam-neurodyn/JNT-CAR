@@ -36,3 +36,7 @@ uvicorn==0.42.0
 uvloop==0.22.1
 watchfiles==1.1.1
 websockets==16.0
+# Authentication packages
+passlib==1.7.4
+python-jose[cryptography]==3.3.0
+bcrypt==4.2.0

@@ -1,141 +1,130 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
-from datetime import datetime
+import math
 from . import models, schemas
+from .auth import get_password_hash
+
 
 # User CRUD operations
-def get_user(db: Session, user_id: int):
+def get_user(db: Session, user_id: str):
     return db.query(models.User).filter(models.User.id == user_id).first()
 
 def get_user_by_email(db: Session, email: str):
     return db.query(models.User).filter(models.User.email == email).first()
 
 def create_user(db: Session, user: schemas.UserCreate):
-    db_user = models.User(**user.dict())
+    # Hash the password
+    hashed_password = get_password_hash(user.password)
+    
+    db_user = models.User(
+        name=user.name,
+        email=user.email,
+        password_hash=hashed_password
+    )
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
     return db_user
 
-# Car CRUD operations
-def get_cars(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.Car).offset(skip).limit(limit).all()
 
-def get_car(db: Session, car_id: int):
+# Car CRUD operations
+def get_cars(db: Session, skip: int = 0, limit: int = 100, city: str = None):
+    query = db.query(models.Car).filter(models.Car.is_available == True)
+    
+    if city:
+        query = query.filter(models.Car.city.ilike(f"%{city}%"))
+    
+    return query.offset(skip).limit(limit).all()
+
+def get_car(db: Session, car_id: str):
     return db.query(models.Car).filter(models.Car.id == car_id).first()
 
-def get_available_cars(
-    db: Session, 
-    pickup_date: datetime, 
-    drop_date: datetime,
-    location: str = None
-):
-    # Get cars that are not booked during the requested dates
-    query = db.query(models.Car).filter(models.Car.available == True)
-    
-    if location:
-        query = query.filter(models.Car.location == location)
-    
-    # Exclude cars that are already booked during the requested dates
-    booked_cars = db.query(models.Car.id).join(models.Booking).filter(
-        and_(
-            models.Booking.status.in_(['confirmed', 'pending']),
-            or_(
-                and_(
-                    models.Booking.pickup_date <= pickup_date,
-                    models.Booking.drop_date >= pickup_date
-                ),
-                and_(
-                    models.Booking.pickup_date <= drop_date,
-                    models.Booking.drop_date >= drop_date
-                ),
-                and_(
-                    models.Booking.pickup_date >= pickup_date,
-                    models.Booking.drop_date <= drop_date
-                )
-            )
-        )
-    )
-    
-    query = query.filter(~models.Car.id.in_(booked_cars))
-    
-    return query.all()
-
-def create_car(db: Session, car: schemas.CarCreate):
-    # Convert features list to JSON string
-    car_data = car.dict()
-    car_data['features'] = str(car_data['features'])
-    car_data['available'] = str(car_data['available']).lower()
-    
-    db_car = models.Car(**car_data)
+def create_car(db: Session, car: schemas.CarCreate, owner_id: str):
+    db_car = models.Car(**car.dict(), owner_id=owner_id)
     db.add(db_car)
     db.commit()
     db.refresh(db_car)
     return db_car
 
-# Booking CRUD operations
-def get_bookings(
-    db: Session, 
-    skip: int = 0, 
-    limit: int = 100,
-    user_id: int = None,
-    status: str = None
-):
-    query = db.query(models.Booking)
-    
-    if user_id:
-        query = query.filter(models.Booking.user_id == user_id)
-    
-    if status:
-        query = query.filter(models.Booking.status == status)
-    
-    return query.offset(skip).limit(limit).all()
-
-def get_booking(db: Session, booking_id: int):
-    return db.query(models.Booking).filter(models.Booking.id == booking_id).first()
-
-def create_booking(db: Session, booking: schemas.BookingCreate):
-    # Calculate total amount based on car price and booking duration
-    car = get_car(db, booking.car_id)
-    if not car:
-        raise ValueError("Car not found")
-    
-    # Calculate days and hours
-    duration = booking.drop_date - booking.pickup_date
-    days = duration.days
-    hours = duration.seconds // 3600
-    
-    # Calculate total amount
-    total_amount = (days * car.price_per_day) + (hours * car.price_per_hour)
-    
-    # Create booking
-    booking_data = booking.dict()
-    booking_data['total_amount'] = total_amount
-    booking_data['status'] = models.BookingStatus.PENDING
-    booking_data['payment_status'] = 'pending'
-    
-    db_booking = models.Booking(**booking_data)
-    db.add(db_booking)
-    db.commit()
-    db.refresh(db_booking)
-    return db_booking
-
-def update_booking(db: Session, booking_id: int, booking_update: schemas.BookingUpdate):
-    db_booking = get_booking(db, booking_id)
-    if db_booking:
-        update_data = booking_update.dict(exclude_unset=True)
+def update_car(db: Session, car_id: str, car_update: schemas.CarUpdate):
+    db_car = get_car(db, car_id)
+    if db_car:
+        update_data = car_update.dict(exclude_unset=True)
         for field, value in update_data.items():
-            setattr(db_booking, field, value)
+            setattr(db_car, field, value)
         
         db.commit()
-        db.refresh(db_booking)
-    return db_booking
+        db.refresh(db_car)
+    return db_car
 
-def cancel_booking(db: Session, booking_id: int):
-    return update_booking(db, booking_id, schemas.BookingUpdate(status=models.BookingStatus.CANCELLED))
+def delete_car(db: Session, car_id: str):
+    db_car = get_car(db, car_id)
+    if db_car:
+        db.delete(db_car)
+        db.commit()
+    return db_car
 
-def confirm_booking(db: Session, booking_id: int):
-    return update_booking(db, booking_id, schemas.BookingUpdate(
-        status=models.BookingStatus.CONFIRMED,
-        payment_status='paid'
-    ))
+
+# Geo-location functions
+def calculate_distance(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    """Calculate distance between two points using Haversine formula."""
+    # Convert decimal degrees to radians
+    lat1, lng1, lat2, lng2 = map(math.radians, [lat1, lng1, lat2, lng2])
+    
+    # Haversine formula
+    dlat = lat2 - lat1
+    dlng = lng2 - lng1
+    a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlng/2)**2
+    c = 2 * math.asin(math.sqrt(a))
+    
+    # Radius of earth in kilometers
+    r = 6371
+    return c * r
+
+def get_nearby_cars(
+    db: Session, 
+    lat: float, 
+    lng: float, 
+    radius: float = 10.0,
+    city: str = None
+):
+    """Get available cars within specified radius."""
+    query = db.query(models.Car).filter(models.Car.is_available == True)
+    
+    # Filter by city first for performance
+    if city:
+        query = query.filter(models.Car.city.ilike(f"%{city}%"))
+    
+    cars = query.all()
+    
+    # Calculate distances and filter by radius
+    nearby_cars = []
+    for car in cars:
+        distance = calculate_distance(lat, lng, float(car.latitude), float(car.longitude))
+        if distance <= radius:
+            car_dict = {
+                "id": car.id,
+                "brand": car.brand,
+                "model": car.model,
+                "year": car.year,
+                "daily_rate": float(car.daily_rate),
+                "transmission": car.transmission,
+                "fuel_type": car.fuel_type,
+                "seats": car.seats,
+                "description": car.description,
+                "images": car.images,
+                "latitude": float(car.latitude),
+                "longitude": float(car.longitude),
+                "address": car.address,
+                "city": car.city,
+                "is_available": car.is_available,
+                "owner_id": car.owner_id,
+                "created_at": car.created_at,
+                "distance_km": round(distance, 2)
+            }
+            nearby_cars.append(car_dict)
+    
+    # Sort by distance
+    nearby_cars.sort(key=lambda x: x["distance_km"])
+    
+    return nearby_cars

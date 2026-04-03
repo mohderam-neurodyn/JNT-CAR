@@ -1,93 +1,89 @@
 from pydantic import BaseModel, EmailStr
-from datetime import datetime
 from typing import Optional, List
-from .models import BookingStatus
+from datetime import datetime
+from .models import UserRole, TransmissionType, FuelType
 
-# User schemas
+
+# User Schemas
 class UserBase(BaseModel):
-    first_name: str
-    last_name: str
+    name: str
     email: EmailStr
-    phone: str
-    license_number: str
-    address: str
+
 
 class UserCreate(UserBase):
-    pass
+    password: str
+
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
 
 class UserResponse(UserBase):
-    id: int
+    id: str
+    role: UserRole
     created_at: datetime
-    updated_at: Optional[datetime] = None
-    
+
     class Config:
         from_attributes = True
 
-# Car schemas
+
+# Car Schemas
 class CarBase(BaseModel):
-    name: str
     brand: str
-    category: str
-    transmission: str
-    fuel: str
+    model: str
+    year: int
+    daily_rate: float
+    transmission: TransmissionType
+    fuel_type: FuelType
     seats: int
-    price_per_day: int
-    price_per_hour: int
-    image: str
-    rating: int
-    reviews: int
-    features: List[str]
-    available: bool
-    location: str
+    description: Optional[str] = None
+    images: Optional[List[str]] = None
+    latitude: float
+    longitude: float
+    address: str
+    city: str
+
 
 class CarCreate(CarBase):
     pass
 
+
+class CarUpdate(BaseModel):
+    brand: Optional[str] = None
+    model: Optional[str] = None
+    year: Optional[int] = None
+    daily_rate: Optional[float] = None
+    transmission: Optional[TransmissionType] = None
+    fuel_type: Optional[FuelType] = None
+    seats: Optional[int] = None
+    description: Optional[str] = None
+    images: Optional[List[str]] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    is_available: Optional[bool] = None
+
+
 class CarResponse(CarBase):
-    id: int
+    id: str
+    is_available: bool
+    owner_id: str
     created_at: datetime
-    updated_at: Optional[datetime] = None
-    
+    distance_km: Optional[float] = None  # For nearby cars endpoint
+
     class Config:
         from_attributes = True
 
-# Booking schemas
-class BookingBase(BaseModel):
-    pickup_location: str
-    drop_location: str
-    pickup_date: datetime
-    drop_date: datetime
-    payment_method: str
 
-class BookingCreate(BookingBase):
-    user_id: int
-    car_id: int
+# Auth Schemas
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+    user: UserResponse
 
-class BookingUpdate(BaseModel):
-    status: Optional[BookingStatus] = None
-    payment_status: Optional[str] = None
 
-class BookingResponse(BookingBase):
-    id: int
-    user_id: int
-    car_id: int
-    total_amount: int
-    status: BookingStatus
-    payment_status: str
-    created_at: datetime
-    updated_at: Optional[datetime] = None
-    user: Optional[UserResponse] = None
-    car: Optional[CarResponse] = None
-    
-    class Config:
-        from_attributes = True
-
-# Additional schemas for API responses
-class BookingListResponse(BaseModel):
-    bookings: List[BookingResponse]
-    total: int
-    page: int
-    size: int
-
-class UserWithBookings(UserResponse):
-    bookings: List[BookingResponse] = []
+class TokenData(BaseModel):
+    user_id: Optional[str] = None
+    role: Optional[UserRole] = None

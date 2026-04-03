@@ -2,13 +2,16 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Search, MapPin, Calendar, Users, Star, ChevronRight, Shield, Clock, Award } from "lucide-react";
+import { Search, MapPin, Calendar, Users, Star, ChevronRight, Shield, Clock, Award, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cars } from "@/lib/data";
+import { useAuth } from "@/contexts/AuthContext";
+import BookingSearchWidget from "@/components/booking/BookingSearchWidget";
 
 export default function Home() {
   const featuredCars = cars.slice(0, 3);
+  const { user, isAdmin } = useAuth();
 
   return (
     <div className="min-h-screen">
@@ -40,6 +43,14 @@ export default function Home() {
                     <ChevronRight className="w-5 h-5" />
                   </Button>
                 </Link>
+                {user && isAdmin && (
+                  <Link href="/admin">
+                    <Button className="bg-green-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors inline-flex items-center gap-2">
+                      Admin Panel
+                      <ChevronRight className="w-5 h-5" />
+                    </Button>
+                  </Link>
+                )}
                 <Link href="/about">
                   <Button className="bg-blue-700 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-800 transition-colors border-2 border-white">
                     Learn More
@@ -85,84 +96,124 @@ export default function Home() {
 
       {/* Quick Search */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-12 relative z-20">
-        <Card className="bg-white/95 backdrop-blur-sm shadow-2xl border-0">
-          <CardContent className="p-6 md:p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Find Your Perfect Car</h2>
-            <div className="grid md:grid-cols-4 gap-4">
-              <div className="relative">
-                <MapPin className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Pickup Location"
-                  className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                />
-              </div>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                <input
-                  type="date"
-                  className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                />
-              </div>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                <input
-                  type="date"
-                  className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                />
-              </div>
-              <Button className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300">
-                Search Cars
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <BookingSearchWidget />
       </section>
 
-      {/* Features */}
-      <section className="py-20 bg-gray-50">
+      {/* How It Works */}
+      <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Why Choose JNT CAR?</h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              We offer the best self-drive car rental experience with our premium services
-            </p>
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">How It Works</h2>
+            <p className="text-xl text-gray-600">Book your car in 3 simple steps</p>
           </div>
           
           <div className="grid md:grid-cols-3 gap-8">
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300 group">
-              <CardContent className="p-8 text-center">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-blue-200 transition-colors">
-                  <Award className="w-8 h-8 text-blue-600" />
+            <div className="text-center group">
+              <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-blue-200 transition-colors">
+                <Search className="w-10 h-10 text-blue-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">1. Search & Select</h3>
+              <p className="text-gray-600">
+                Choose your location, dates, and browse from our wide selection of cars
+              </p>
+            </div>
+            
+            <div className="text-center group">
+              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-green-200 transition-colors">
+                <Calendar className="w-10 h-10 text-green-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">2. Book & Pay</h3>
+              <p className="text-gray-600">
+                Select your car, choose pickup time, and complete your booking securely
+              </p>
+            </div>
+            
+            <div className="text-center group">
+              <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-purple-200 transition-colors">
+                <MapPin className="w-10 h-10 text-purple-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">3. Drive & Return</h3>
+              <p className="text-gray-600">
+                Pick up your car at the scheduled time and enjoy your journey!
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials */}
+      <section className="py-20 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">What Our Customers Say</h2>
+            <p className="text-xl text-gray-600">Real experiences from real customers</p>
+          </div>
+          
+          <div className="grid md:grid-cols-3 gap-8">
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
+              <CardContent className="p-6">
+                <div className="flex mb-4">
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} className="w-5 h-5 text-yellow-500 fill-current" />
+                  ))}
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-3">Premium Cars</h3>
-                <p className="text-gray-600">
-                  Well-maintained, modern vehicles with regular servicing and quality checks
+                <p className="text-gray-700 mb-4">
+                  "Amazing experience! The car was clean, well-maintained, and the booking process was seamless. Will definitely use again!"
                 </p>
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                    <span className="text-blue-600 font-semibold">RK</span>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-900">Rahul Kumar</div>
+                    <div className="text-sm text-gray-600">Delhi</div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
             
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300 group">
-              <CardContent className="p-8 text-center">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-green-200 transition-colors">
-                  <Shield className="w-8 h-8 text-green-600" />
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
+              <CardContent className="p-6">
+                <div className="flex mb-4">
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} className="w-5 h-5 text-yellow-500 fill-current" />
+                  ))}
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-3">Fully Insured</h3>
-                <p className="text-gray-600">
-                  Comprehensive insurance coverage for your peace of mind during every journey
+                <p className="text-gray-700 mb-4">
+                  "Great service and competitive prices. The car was exactly as described and the pickup/drop-off was convenient."
                 </p>
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                    <span className="text-purple-600 font-semibold">SP</span>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-900">Priya Sharma</div>
+                    <div className="text-sm text-gray-600">Mumbai</div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
             
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300 group">
-              <CardContent className="p-8 text-center">
-                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-purple-200 transition-colors">
-                  <Clock className="w-8 h-8 text-purple-600" />
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
+              <CardContent className="p-6">
+                <div className="flex mb-4">
+                  {[...Array(4)].map((_, i) => (
+                    <Star key={i} className="w-5 h-5 text-yellow-500 fill-current" />
+                  ))}
+                  <Star className="w-5 h-5 text-gray-300" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-3">24/7 Support</h3>
-                <p className="text-gray-600">
-                  Round-the-clock customer support to assist you whenever you need help
+                <p className="text-gray-700 mb-4">
+                  "Very professional service. The app is user-friendly and customer support is responsive. Highly recommend!"
                 </p>
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                    <span className="text-green-600 font-semibold">AP</span>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-900">Amit Patel</div>
+                    <div className="text-sm text-gray-600">Bangalore</div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>
