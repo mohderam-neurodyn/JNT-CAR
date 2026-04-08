@@ -1,0 +1,26 @@
+# Core FastAPI dependencies
+fastapi==0.135.2
+uvicorn==0.42.0
+starlette==1.0.0
+
+# Database
+SQLAlchemy==2.0.48
+alembic==1.18.4
+psycopg2-binary==2.9.11
+
+# Authentication & Security
+passlib==1.7.4
+python-jose[cryptography]==3.3.0
+bcrypt==4.2.0
+
+# Data validation
+pydantic==2.12.5
+pydantic_core==2.41.5
+email-validator==2.3.0
+
+# HTTP & Utilities
+requests==2.22.0
+python-dotenv==1.2.2
+
+# Production server
+gunicorn==21.2.0
