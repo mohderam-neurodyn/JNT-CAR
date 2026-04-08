@@ -1,5 +1,8 @@
+"use client";
 import { Suspense } from "react";
-import CarsClient from "./CarsClient";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 export default function Page() {
   return (
